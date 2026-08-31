@@ -11,9 +11,9 @@ the problem, the primary user, and the current state. Two or three sentences.
 Keep it current. An out-of-date description here misleads every future conversation.
 -->
 
-This is an unmodified AISprints starter. No application features have been built yet.
-The technical PRD in `ai-workspace/` is the source of truth for what is being built and
-for the current phase of work.
+Quiz Maker is a shared multiple-choice test bank for teachers. Sprint 1 is
+register / login / logout only (see `ai-workspace/register-login-logout_prd.md`).
+Phase 1 is done: local D1 `users` table and Vitest. Auth UI and endpoints are not built yet.
 
 ## Stack
 
@@ -23,9 +23,11 @@ for the current phase of work.
 - **shadcn/ui** on Base UI, `base-nova` style, with Lucide icons
 - **TypeScript** in strict mode
 - **Wrangler** for Cloudflare configuration, secrets, and deployment
+- **Cloudflare D1** bound as `DB` (local-only `database_id` until a remote DB is created)
+- **Vitest** for unit tests (`npm test` / `npm run test:watch`)
 
-No database, authentication, testing framework, or AI SDK is installed yet. Do not
-write code that imports one without adding it first and telling the user.
+Authentication and an AI SDK are not installed yet. Do not write code that imports
+one without adding it first and telling the user. Zod is not installed yet.
 
 ## Layout
 
@@ -33,6 +35,7 @@ write code that imports one without adding it first and telling the user.
 src/app/            Routes, layouts, and global styles (App Router)
 src/components/ui/  shadcn/ui components (generated; avoid hand-editing)
 src/lib/            Shared utilities and services
+migrations/         D1 schema migrations (apply locally only)
 ai-workspace/       Technical PRDs and planning documents
 .cursor/rules/      File-scoped conventions
 .cursor/skills/     Task-specific guidance loaded on demand
@@ -49,6 +52,8 @@ Import through the `@/` alias, which maps to `src/`.
 | `npm run preview` | Build and run on the local **Workers** runtime |
 | `npm run build` | Production build |
 | `npm run lint` | ESLint |
+| `npm test` | Vitest unit tests (single run) |
+| `npm run test:watch` | Vitest in watch mode |
 | `npm run deploy` | Build and deploy to Cloudflare |
 | `npm run cf-typegen` | Regenerate `cloudflare-env.d.ts` after changing bindings |
 
