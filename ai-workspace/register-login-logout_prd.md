@@ -337,7 +337,7 @@ Run `npm test`. These must fail until the service exists.
 - `user-service.test.ts` (written first) and `user-service.ts`
 - Typed user record (public vs stored)
 
-### Phase 3: Auth endpoints - PLANNED
+### Phase 3: Auth endpoints - COMPLETED
 
 **Objective**: Register, login, and logout are callable over HTTP, proven by unit tests against a mocked user service.
 
@@ -463,12 +463,14 @@ Planned. Update paths here as files are created.
 - `src/lib/services/user-service.test.ts` - Phase 2 service tests (wrote first; RED then GREEN)
 - `src/lib/hash-password.ts` - browser SHA-256 helper (client-only)
 - `src/lib/hash-password.test.ts` - Phase 4 hash tests (write first)
+- `src/lib/auth-schemas.ts` - Zod schemas for register and login bodies
+- `src/lib/hashes-match.ts` - constant-time hash comparison for login
 - `src/app/api/auth/register/route.ts` - register endpoint
-- `src/app/api/auth/register/route.test.ts` - Phase 3 register tests (write first)
+- `src/app/api/auth/register/route.test.ts` - Phase 3 register tests (wrote first; RED then GREEN)
 - `src/app/api/auth/login/route.ts` - login endpoint
-- `src/app/api/auth/login/route.test.ts` - Phase 3 login tests (write first)
+- `src/app/api/auth/login/route.test.ts` - Phase 3 login tests (wrote first; RED then GREEN)
 - `src/app/api/auth/logout/route.ts` - logout endpoint
-- `src/app/api/auth/logout/route.test.ts` - Phase 3 logout tests (write first)
+- `src/app/api/auth/logout/route.test.ts` - Phase 3 logout tests (wrote first; RED then GREEN)
 - `src/app/register/page.tsx` - register UI
 - `src/app/login/page.tsx` - login UI
 - `src/app/mcqs/page.tsx` - MCQ stub
@@ -528,8 +530,7 @@ Access D1 through `getDb()` in `src/lib/db.ts` (`getCloudflareContext({ async: t
 
 ### Important Notes
 
-- AGENTS.md currently says no database, auth, or testing framework is installed. Adding D1, Zod, and Vitest are part of this feature and must be proposed before install/config
-- Ask before adding Zod, Vitest, or any other package
+- D1, Vitest, and Zod are now installed. Ask before adding any further packages
 - TDD order is mandatory: tests for the phase, run them (RED), then implement (GREEN). Do not implement a phase and backfill tests afterward
 - Phase 1 D1 is local-only. `wrangler.jsonc` uses `database_id` `local-only-quizmaker-db`. Migrations were applied with `--local` only. A remote D1 was not created
 - `npm run dev` is Node and will not prove Workers/D1 behavior. Prefer `npm run preview` when checking database-backed auth
@@ -544,18 +545,18 @@ Access D1 through `getDb()` in `src/lib/db.ts` (`getCloudflareContext({ async: t
 ## Acceptance Criteria
 
 - [x] A local D1 `users` table exists via migration (id, first_name, last_name, username, email, password_hash, timestamps)
-- [ ] Register creates a user and stores only a hash in `password_hash`
-- [ ] A user may set username and email to the same value
-- [ ] A second user cannot reuse an existing username or email
-- [ ] Login succeeds when username and the client-hashed password match a stored user
-- [ ] Login fails with a generic 401 when the username is unknown or the hash does not match
-- [ ] Register and login HTTP bodies include `passwordHash` and do not include the raw password
+- [x] Register creates a user and stores only a hash in `password_hash`
+- [x] A user may set username and email to the same value
+- [x] A second user cannot reuse an existing username or email
+- [x] Login succeeds when username and the client-hashed password match a stored user
+- [x] Login fails with a generic 401 when the username is unknown or the hash does not match
+- [x] Register and login HTTP bodies include `passwordHash` and do not include the raw password
 - [ ] Successful register redirects to `/mcqs`
 - [ ] Successful login redirects to `/mcqs`
 - [ ] `/mcqs` is a stub only (no MCQ CRUD)
 - [ ] Logout returns the user to `/login`
 - [x] User service supports create, update, and delete
-- [ ] Route handlers do not query D1 directly; they go through the user service
+- [x] Route handlers do not query D1 directly; they go through the user service
 - [ ] No social login, tokens, cookies, or other session machinery is introduced
 - [x] Vitest is configured (`npm test` / `npm run test:watch`)
 - [ ] Each implementation phase was developed test-first (RED then GREEN); the suite does not contain hollow assertions
@@ -593,7 +594,7 @@ This phase is foundation work, not a launched product. Treat the first row as th
 - `@opennextjs/cloudflare` `getCloudflareContext()` - reach `env.DB`
 - `src/lib/services/user-service.ts` - all user reads/writes
 - shadcn/ui `card`, `button`, `field`, `input`, `label` - auth forms
-- Zod - request validation (propose before adding)
+- Zod - request validation for register/login bodies (`src/lib/auth-schemas.ts`)
 - Vitest + Testing Library - TDD harness (propose before adding). Conventions in `.cursor/skills/testing/SKILL.md`
 
 ### Environment
@@ -696,6 +697,6 @@ When working with this PRD:
 ## Current Status
 
 **Last Updated**: 2026-08-31
-**Current Phase**: Phase 2 - User service
-**Status**: COMPLETED — stopped for user review before Phase 3
-**Next Steps**: After review, start Phase 3 RED (auth route tests) on `feature/register-login-logout`
+**Current Phase**: Phase 3 - Auth endpoints
+**Status**: COMPLETED — stopped for user review before Phase 4
+**Next Steps**: After review, start Phase 4 RED (hash helper and client form tests) on `feature/register-login-logout`

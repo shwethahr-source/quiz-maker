@@ -13,8 +13,8 @@ Keep it current. An out-of-date description here misleads every future conversat
 
 Quiz Maker is a shared multiple-choice test bank for teachers. Sprint 1 is
 register / login / logout only (see `ai-workspace/register-login-logout_prd.md`).
-Phase 2 is done: local D1 `users` table, Vitest, and a user service in
-`src/lib/services/user-service.ts`. Auth HTTP endpoints and UI are not built yet.
+Phase 3 is done: local D1 `users` table, Vitest, user service, and
+`POST /api/auth/register|login|logout`. Auth UI is not built yet.
 
 ## Stack
 
@@ -27,8 +27,8 @@ Phase 2 is done: local D1 `users` table, Vitest, and a user service in
 - **Cloudflare D1** bound as `DB` (local-only `database_id` until a remote DB is created)
 - **Vitest** for unit tests (`npm test` / `npm run test:watch`)
 
-Authentication and an AI SDK are not installed yet. Do not write code that imports
-one without adding it first and telling the user. Zod is not installed yet.
+An AI SDK is not installed yet. Do not write code that imports one without adding
+it first and telling the user. Zod is installed for request validation.
 
 ## Layout
 
