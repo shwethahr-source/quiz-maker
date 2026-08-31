@@ -300,7 +300,7 @@ Each phase below starts with **RED** tests. Do not write production code for a p
 - Migration file under `migrations/`
 - Local schema applied
 
-### Phase 2: User service - PLANNED
+### Phase 2: User service - COMPLETED
 
 **Objective**: All user persistence goes through one service, proven by unit tests against a mocked D1.
 
@@ -458,8 +458,9 @@ Planned. Update paths here as files are created.
 - `wrangler.jsonc` - D1 `DB` binding (`database_name`: `quizmaker`, local-only `database_id`)
 - `migrations/0001_create_users.sql` - users table migration
 - `src/lib/db/users-schema.test.ts` - Phase 1 schema contract tests (wrote first; RED then GREEN)
-- `src/lib/services/user-service.ts` - create, update, delete, lookups
-- `src/lib/services/user-service.test.ts` - Phase 2 service tests (write first)
+- `src/lib/db.ts` - `getDb()` D1 access (server-only; tests mock this module)
+- `src/lib/services/user-service.ts` - create, update, delete, lookups, `toPublicUser`
+- `src/lib/services/user-service.test.ts` - Phase 2 service tests (wrote first; RED then GREEN)
 - `src/lib/hash-password.ts` - browser SHA-256 helper (client-only)
 - `src/lib/hash-password.test.ts` - Phase 4 hash tests (write first)
 - `src/app/api/auth/register/route.ts` - register endpoint
@@ -523,7 +524,7 @@ beforeEach(() => {
 });
 ```
 
-Access D1 with `getCloudflareContext()` from `@opennextjs/cloudflare`, then `env.DB`. Only server code may import the user service.
+Access D1 through `getDb()` in `src/lib/db.ts` (`getCloudflareContext({ async: true })`, then `env.DB`). The user service is the only module that runs user SQL. Only server code may import `getDb` or the user service. Lookups used by the API return `PublicUser` (no hash). Login in Phase 3 should use `getStoredUserByUsername` when it needs the stored hash.
 
 ### Important Notes
 
@@ -553,7 +554,7 @@ Access D1 with `getCloudflareContext()` from `@opennextjs/cloudflare`, then `env
 - [ ] Successful login redirects to `/mcqs`
 - [ ] `/mcqs` is a stub only (no MCQ CRUD)
 - [ ] Logout returns the user to `/login`
-- [ ] User service supports create, update, and delete
+- [x] User service supports create, update, and delete
 - [ ] Route handlers do not query D1 directly; they go through the user service
 - [ ] No social login, tokens, cookies, or other session machinery is introduced
 - [x] Vitest is configured (`npm test` / `npm run test:watch`)
@@ -695,6 +696,6 @@ When working with this PRD:
 ## Current Status
 
 **Last Updated**: 2026-08-31
-**Current Phase**: Phase 1 - Database foundation
-**Status**: COMPLETED — stopped for user review before Phase 2
-**Next Steps**: After review, start Phase 2 RED (`user-service.test.ts`) on `feature/register-login-logout`
+**Current Phase**: Phase 2 - User service
+**Status**: COMPLETED — stopped for user review before Phase 3
+**Next Steps**: After review, start Phase 3 RED (auth route tests) on `feature/register-login-logout`

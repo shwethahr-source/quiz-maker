@@ -13,7 +13,8 @@ Keep it current. An out-of-date description here misleads every future conversat
 
 Quiz Maker is a shared multiple-choice test bank for teachers. Sprint 1 is
 register / login / logout only (see `ai-workspace/register-login-logout_prd.md`).
-Phase 1 is done: local D1 `users` table and Vitest. Auth UI and endpoints are not built yet.
+Phase 2 is done: local D1 `users` table, Vitest, and a user service in
+`src/lib/services/user-service.ts`. Auth HTTP endpoints and UI are not built yet.
 
 ## Stack
 
