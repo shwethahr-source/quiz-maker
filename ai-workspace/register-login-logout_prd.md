@@ -31,6 +31,7 @@ We believe that a simple register / login / logout flow, backed by a hashed-pass
 - After a successful register or login, navigate to a stub MCQ page
 - Logout from the stub MCQ page, returning the user to login
 - A stub `/mcqs` page with no question-bank behavior
+- Auth pages built from the shadcn login and signup blocks (centered card + Field/Card primitives), with fields adapted to username login and first/last/username/email registration
 - Test-driven implementation with **Vitest**: each phase starts with failing unit tests, then implementation until those tests pass. A phase is not complete until its tests are green and the phase acceptance checks hold
 
 ### Out of Scope
@@ -51,6 +52,7 @@ We believe that a simple register / login / logout flow, backed by a hashed-pass
 - Cookies or `localStorage` session flags used as auth - the user asked for no session management. Success is a redirect, not a persisted login
 - Server Actions instead of HTTP endpoints - the product requirement is explicit register / login / logout HTTP APIs
 - Sending plaintext passwords over the wire and hashing only on the server - the requirement is to hash in the browser before POST
+- The shadcn block's "Login with Google" / "Sign up with Google" and "Forgot your password?" — social login and reset are out of scope
 - `@cloudflare/vitest-pool-workers` - unit tests mock D1 and `getCloudflareContext()`. A Workers test pool changes how the whole suite runs and is not needed for this phase
 - Hollow tests (`expect(true).toBe(true)` or assertions that cannot fail)
 
@@ -218,14 +220,45 @@ The client then navigates to `/login`.
 
 ### User Interface Requirements
 
-Use existing shadcn/ui pieces (`card`, `button`, `field`, `input`, `label`) under `src/components/`. Forms are client components so they can hash with `crypto.subtle` before POST.
+Build auth pages from the **shadcn login and signup blocks**. Keep their centered card layout, `Card` / `Field` / `Input` / `Button` composition, and Tailwind classes. Adapt the fields and actions to this feature; do not ship the block's social login or password-reset extras.
 
-Shared client helper (for example `src/lib/hash-password.ts`, callable from the browser only): SHA-256 of the UTF-8 password, lowercase hex. Register and login must use the same helper.
+Forms are client components so they can hash with `crypto.subtle` before POST. Styling is Tailwind via shadcn tokens (`bg-background`, `text-muted-foreground`, etc.). Do not add `react-hook-form`. Surface errors with `FieldError`.
+
+Shared client helper (`src/lib/hash-password.ts`, browser-only): SHA-256 of the UTF-8 password, lowercase hex. Register and login must use the same helper.
+
+#### shadcn block baseline
+
+**Login page shell** (`/login`) — keep this layout:
+
+```tsx
+<div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
+  <div className="w-full max-w-sm">
+    <LoginForm />
+  </div>
+</div>
+```
+
+**Register page shell** (`/register`) — same centered shell, render `SignupForm`.
+
+**Login form** starts from the shadcn `LoginForm` card (`Login to your account`, FieldGroup, password input, submit button). Adaptations:
+
+- Login identifier is **username**, not email (matches `POST /api/auth/login`)
+- Remove "Forgot your password?"
+- Remove "Login with Google"
+- Footer link goes to `/register` ("Sign up" / create account)
+
+**Register form** starts from the shadcn `SignupForm` card (`Create an account`, FieldGroup, password + confirm password). Adaptations:
+
+- Split "Full Name" into **first name** and **last name** (the `users` table stores both)
+- Add a **username** field (may equal email)
+- Keep email, password (min 8), and confirm password (client-side match only; not sent to the API)
+- Remove "Sign up with Google"
+- Footer link goes to `/login`
 
 #### Home (`/`)
 
 - Entry point with short copy that this is Quiz Maker
-- Actions: go to Register, go to Login
+- Actions: go to Register, go to Login (accessible names)
 - No authenticated dashboard in this phase
 
 #### Register (`/register`)
@@ -236,10 +269,12 @@ Shared client helper (for example `src/lib/hash-password.ts`, callable from the 
   - Username — required, trimmed, non-empty
   - Email — required, valid email format
   - Password — required, minimum 8 characters, `type="password"`
+  - Confirm password — required, must match password; client-only, never POSTed
 - Username and email may be the same value; do not block that
-- On submit: hash password in the browser, POST `/api/auth/register` with `passwordHash` only (never the raw password)
+- On submit: hash password in the browser, POST `/api/auth/register` with `passwordHash` only (never the raw password or confirm password)
 - On 201: navigate to `/mcqs`
 - On 400/500: show the API error on the form; stay on `/register`
+- Mismatched confirm password: show a field error and do not call the API
 - Link to `/login` for existing users
 
 #### Login (`/login`)
@@ -382,7 +417,7 @@ Run `npm test`. These must fail until the endpoints exist.
 - Three route handlers and their tests (tests first)
 - Zod schemas for register and login bodies
 
-### Phase 4: Frontend auth flow and MCQ stub - PLANNED
+### Phase 4: Frontend auth flow and MCQ stub - COMPLETED
 
 **Objective**: A teacher can register or log in in the browser and land on the MCQ stub; logout returns them to login. Client hashing and UI behavior are proven by Vitest.
 
@@ -393,7 +428,7 @@ Run `npm test`. These must fail until the endpoints exist.
    - different inputs → different hashes
    - does not return the original password string
 2. Client form tests (colocated `*.test.tsx`), rendered with Testing Library + `userEvent`. Mock `fetch` and Next navigation. Cover:
-   - Register: required fields are present; submit hashes via `hashPassword` then POSTs `/api/auth/register` with `passwordHash` and **no** raw `password`; 201 navigates to `/mcqs`; 400 shows the API error and stays put; username and email may be the same
+   - Register (shadcn `SignupForm`): required fields are present (first name, last name, username, email, password, confirm password); submit hashes via `hashPassword` then POSTs `/api/auth/register` with `passwordHash` and **no** raw `password` or confirm password; 201 navigates to `/mcqs`; 400 shows the API error and stays put; username and email may be the same; mismatched confirm password does not call the API
    - Login: submit hashes then POSTs `/api/auth/login`; 200 navigates to `/mcqs`; 401 shows a generic failure and stays put
    - MCQ stub: shows placeholder copy only (no question CRUD controls); Logout POSTs `/api/auth/logout` then navigates to `/login`
    - Home: links to Register and Login (query by role / accessible name)
@@ -462,7 +497,7 @@ Planned. Update paths here as files are created.
 - `src/lib/services/user-service.ts` - create, update, delete, lookups, `toPublicUser`
 - `src/lib/services/user-service.test.ts` - Phase 2 service tests (wrote first; RED then GREEN)
 - `src/lib/hash-password.ts` - browser SHA-256 helper (client-only)
-- `src/lib/hash-password.test.ts` - Phase 4 hash tests (write first)
+- `src/lib/hash-password.test.ts` - Phase 4 hash tests (wrote first; RED then GREEN)
 - `src/lib/auth-schemas.ts` - Zod schemas for register and login bodies
 - `src/lib/hashes-match.ts` - constant-time hash comparison for login
 - `src/app/api/auth/register/route.ts` - register endpoint
@@ -471,11 +506,15 @@ Planned. Update paths here as files are created.
 - `src/app/api/auth/login/route.test.ts` - Phase 3 login tests (wrote first; RED then GREEN)
 - `src/app/api/auth/logout/route.ts` - logout endpoint
 - `src/app/api/auth/logout/route.test.ts` - Phase 3 logout tests (wrote first; RED then GREEN)
-- `src/app/register/page.tsx` - register UI
-- `src/app/login/page.tsx` - login UI
+- `src/app/register/page.tsx` - shadcn signup-block page shell
+- `src/app/login/page.tsx` - shadcn login-block page shell
 - `src/app/mcqs/page.tsx` - MCQ stub
 - `src/app/page.tsx` - home launch pad
-- `src/components/` - register/login form components and colocated `*.test.tsx` (write tests first)
+- `src/components/signup-form.tsx` - adapted shadcn SignupForm
+- `src/components/login-form.tsx` - adapted shadcn LoginForm
+- `src/components/home-launch-pad.tsx` - home links
+- `src/components/mcq-stub.tsx` - question-bank placeholder + logout
+- `src/components/*.test.tsx` - Phase 4 UI tests (wrote first; RED then GREEN)
 
 ### Implementation Patterns
 
@@ -551,16 +590,16 @@ Access D1 through `getDb()` in `src/lib/db.ts` (`getCloudflareContext({ async: t
 - [x] Login succeeds when username and the client-hashed password match a stored user
 - [x] Login fails with a generic 401 when the username is unknown or the hash does not match
 - [x] Register and login HTTP bodies include `passwordHash` and do not include the raw password
-- [ ] Successful register redirects to `/mcqs`
-- [ ] Successful login redirects to `/mcqs`
-- [ ] `/mcqs` is a stub only (no MCQ CRUD)
-- [ ] Logout returns the user to `/login`
+- [x] Successful register redirects to `/mcqs`
+- [x] Successful login redirects to `/mcqs`
+- [x] `/mcqs` is a stub only (no MCQ CRUD)
+- [x] Logout returns the user to `/login`
 - [x] User service supports create, update, and delete
 - [x] Route handlers do not query D1 directly; they go through the user service
 - [ ] No social login, tokens, cookies, or other session machinery is introduced
 - [x] Vitest is configured (`npm test` / `npm run test:watch`)
-- [ ] Each implementation phase was developed test-first (RED then GREEN); the suite does not contain hollow assertions
-- [ ] `npm test` is green for schema, user service, auth routes, hash helper, and client form tests
+- [x] Each implementation phase was developed test-first (RED then GREEN); the suite does not contain hollow assertions
+- [x] `npm test` is green for schema, user service, auth routes, hash helper, and client form tests
 - [ ] `npm run lint` and `npm run build` succeed after implementation
 
 ---
@@ -697,6 +736,6 @@ When working with this PRD:
 ## Current Status
 
 **Last Updated**: 2026-08-31
-**Current Phase**: Phase 3 - Auth endpoints
-**Status**: COMPLETED — stopped for user review before Phase 4
-**Next Steps**: After review, start Phase 4 RED (hash helper and client form tests) on `feature/register-login-logout`
+**Current Phase**: Phase 4 - Frontend auth flow and MCQ stub
+**Status**: COMPLETED — stopped for user review before Phase 5
+**Next Steps**: After review, run Phase 5 verification (full suite, preview walkthrough, lint/build) on `feature/register-login-logout`

@@ -13,8 +13,9 @@ Keep it current. An out-of-date description here misleads every future conversat
 
 Quiz Maker is a shared multiple-choice test bank for teachers. Sprint 1 is
 register / login / logout only (see `ai-workspace/register-login-logout_prd.md`).
-Phase 3 is done: local D1 `users` table, Vitest, user service, and
-`POST /api/auth/register|login|logout`. Auth UI is not built yet.
+Phase 4 is done: local D1 `users` table, Vitest, user service,
+`POST /api/auth/register|login|logout`, and shadcn-based register/login/MCQ stub
+pages. Phase 5 verification (preview walkthrough) is not done yet.
 
 ## Stack
 
