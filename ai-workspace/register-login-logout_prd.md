@@ -490,7 +490,7 @@ Put interactive UI in client components so Testing Library can render them. Do n
 Planned. Update paths here as files are created.
 
 - `vitest.config.ts` - Vitest harness (jsdom, `@/` via vite-tsconfig-paths)
-- `wrangler.jsonc` - D1 `DB` binding (`database_name`: `quizmaker`, local-only `database_id`)
+- `wrangler.jsonc` - D1 `DB` binding (`database_name`: `quizmaker`, local UUID `database_id`)
 - `migrations/0001_create_users.sql` - users table migration
 - `src/lib/db/users-schema.test.ts` - Phase 1 schema contract tests (wrote first; RED then GREEN)
 - `src/lib/db.ts` - `getDb()` D1 access (server-only; tests mock this module)
@@ -571,7 +571,7 @@ Access D1 through `getDb()` in `src/lib/db.ts` (`getCloudflareContext({ async: t
 
 - D1, Vitest, and Zod are now installed. Ask before adding any further packages
 - TDD order is mandatory: tests for the phase, run them (RED), then implement (GREEN). Do not implement a phase and backfill tests afterward
-- Phase 1 D1 is local-only. `wrangler.jsonc` uses `database_id` `local-only-quizmaker-db`. Migrations were applied with `--local` only. A remote D1 was not created
+- D1 is local-only. `wrangler.jsonc` uses a placeholder UUID `database_id` (`00000000-0000-4000-8000-000000000001`). A non-UUID id left `env.DB` undefined under `next dev`. Migrations were applied with `--local` only. A remote D1 was not created. Restart `npm run dev` after changing the D1 binding.
 - `npm run dev` is Node and will not prove Workers/D1 behavior. Prefer `npm run preview` when checking database-backed auth
 - Apply migrations with `--local` only
 - Username/email may match for one user; they must still be unique across the table
@@ -683,7 +683,7 @@ Add entries when bugs are found and fixed. Seeded from known starter constraints
 ### D1 not configured
 **Problem**: `env.DB` is missing or untyped
 **Cause**: Starter originally had no D1 database
-**Solution**: Binding `DB` is in `wrangler.jsonc`. Run `npm run cf-typegen` after changing bindings. Phase 1 used a local-only `database_id` (`local-only-quizmaker-db`) so no remote D1 was created. To deploy later, run `npx wrangler d1 create quizmaker` and replace that id with the real one
+**Solution**: Binding `DB` is in `wrangler.jsonc` with a UUID `database_id`. Run `npm run cf-typegen` after changing bindings. Apply migrations with `--local`, then restart `npm run dev` so `getPlatformProxy` picks up `env.DB`. A remote D1 was not created. To deploy later, run `npx wrangler d1 create quizmaker` and replace that id with the real one
 **Code Reference**: `wrangler.jsonc`, `.cursor/rules/d1.mdc`
 
 ### Migration applied to remote
@@ -709,6 +709,12 @@ Add entries when bugs are found and fixed. Seeded from known starter constraints
 **Cause**: `getCloudflareContext()` is not available in Vitest/jsdom
 **Solution**: `vi.mock("@opennextjs/cloudflare")` and supply a fake `env`. Never use a real D1 in unit tests
 **Code Reference**: `.cursor/skills/testing/SKILL.md`
+
+### Register shows "Server error" / `db.prepare` is undefined
+**Problem**: `POST /api/auth/register` returns 500; `env.DB` is undefined
+**Cause**: `next dev` was started before the D1 binding existed, or `database_id` was not a UUID so Wrangler did not bind `DB`
+**Solution**: Use a UUID `database_id`, apply migrations locally, restart `npm run dev`
+**Code Reference**: `wrangler.jsonc`, `src/lib/db.ts`
 
 ---
 

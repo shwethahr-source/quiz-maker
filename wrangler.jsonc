@@ -22,7 +22,7 @@
 		{
 			"binding": "DB",
 			"database_name": "quizmaker",
-			"database_id": "local-only-quizmaker-db"
+			"database_id": "00000000-0000-4000-8000-000000000001"
 		}
 	]
 	/**
