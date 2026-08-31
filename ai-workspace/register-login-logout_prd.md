@@ -683,7 +683,7 @@ Add entries when bugs are found and fixed. Seeded from known starter constraints
 ### D1 not configured
 **Problem**: `env.DB` is missing or untyped
 **Cause**: Starter originally had no D1 database
-**Solution**: Binding `DB` is in `wrangler.jsonc` with a UUID `database_id`. Run `npm run cf-typegen` after changing bindings. Apply migrations with `--local`, then restart `npm run dev` so `getPlatformProxy` picks up `env.DB`. A remote D1 was not created. To deploy later, run `npx wrangler d1 create quizmaker` and replace that id with the real one
+**Solution**: Binding `DB` is in `wrangler.jsonc`. Remote D1 `quizmaker` (`fd33905f-6013-476c-974a-79dbc6fed47a`) exists and `0001_create_users` has been applied remotely. For local `next dev`, apply migrations with `--local` and restart the server so `getPlatformProxy` picks up `env.DB`.
 **Code Reference**: `wrangler.jsonc`, `.cursor/rules/d1.mdc`
 
 ### Migration applied to remote

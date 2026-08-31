@@ -25,7 +25,7 @@ pages. Phase 5 verification (preview walkthrough) is not done yet.
 - **shadcn/ui** on Base UI, `base-nova` style, with Lucide icons
 - **TypeScript** in strict mode
 - **Wrangler** for Cloudflare configuration, secrets, and deployment
-- **Cloudflare D1** bound as `DB` (local-only `database_id` until a remote DB is created)
+- **Cloudflare D1** bound as `DB` (`quizmaker`, database id in `wrangler.jsonc`)
 - **Vitest** for unit tests (`npm test` / `npm run test:watch`)
 
 An AI SDK is not installed yet. Do not write code that imports one without adding
