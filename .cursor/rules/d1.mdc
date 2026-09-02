@@ -6,24 +6,23 @@ alwaysApply: false
 
 # Cloudflare D1
 
-D1 is Cloudflare's SQLite database. **This starter has no D1 database configured yet.**
-The conventions below apply once one is added, and describe how to add it.
+D1 is bound as `DB` in `wrangler.jsonc` (`database_name`: `quizmaker`).
+Reach it only through `getDb()` in `src/lib/db.ts`.
 
-## Adding D1 to the project
+A new database (if you ever need a second one):
 
-1. Create the database: `npx wrangler d1 create <name>`
-2. Add the returned `d1_databases` block to `wrangler.jsonc` with binding `DB`.
-3. Run `npm run cf-typegen` so `env.DB` becomes typed.
+1. Create: `npx wrangler d1 create <name>`
+2. Add the `d1_databases` block with binding `DB` (or a new name) and a **UUID** `database_id`
+3. Run `npm run cf-typegen` so the binding is typed
+4. Restart `npm run dev` so `initOpenNextCloudflareForDev` picks it up
 
 ## Access
 
-- Reach the binding through `getCloudflareContext()` from `@opennextjs/cloudflare`,
-  then use `env.DB`.
-- Centralize queries in `src/lib/` rather than calling `env.DB` from components or
-  route handlers directly. Create the module the first time it is needed instead of
-  assuming one already exists.
-- D1 is only reachable from server code. Never import a database module into a
-  component marked `'use client'`.
+- Use `getDb()` from `@/lib/db`. Do not call `getCloudflareContext()` or `env.DB`
+  from route handlers or components.
+- Put SQL in `src/lib/services/`. Route handlers call the service only.
+- D1 is server-only. Never import `@/lib/db` or a service that uses it into
+  `'use client'` components.
 
 ## Writing queries
 
@@ -39,6 +38,7 @@ The conventions below apply once one is added, and describe how to add it.
 - Every schema change is a migration. Do not alter the schema with ad-hoc SQL.
 - Create with `npx wrangler d1 migrations create <db> <description>`.
 - List with `npx wrangler d1 migrations list <db>`.
-- Apply locally with `npx wrangler d1 migrations apply <db> --local`.
-- **Never apply migrations to the remote database.** Do not run `migrations apply` with
-  `--remote`. Remote schema changes are the user's decision to make and execute.
+- Apply locally with `npx wrangler d1 migrations apply quizmaker --local`.
+- **Do not apply migrations remotely unless the user explicitly asks.** Default is
+  `--local` only. Production already has `0001_create_users`; later migrations need
+  `--remote` before a deploy that depends on the new schema.

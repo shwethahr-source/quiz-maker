@@ -1,51 +1,36 @@
 /**
- * For more details on how to configure Wrangler, refer to:
+ * Cloudflare Workers config for Quiz Maker (OpenNext).
  * https://developers.cloudflare.com/workers/wrangler/configuration/
+ *
+ * Live URL after deploy: https://quizmaker.shwetha-hr.workers.dev
+ * Find it in the dashboard under Workers & Pages → quizmaker
+ * (not under Websites / Domains — this is not a custom domain).
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "aisprints-starter",
+	"name": "quizmaker",
+	"account_id": "d0144de158bb59c054b6f7d86d340bc8",
 	"main": ".open-next/worker.js",
 	"compatibility_date": "2026-07-01",
 	"compatibility_flags": [
 		"nodejs_compat",
 		"global_fetch_strictly_public"
 	],
+	"workers_dev": true,
+	"preview_urls": true,
 	"assets": {
 		"binding": "ASSETS",
 		"directory": ".open-next/assets"
 	},
 	"observability": {
 		"enabled": true
-	}
-	/**
-	 * Smart Placement
-	 * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
-	 */
-	// "placement": { "mode": "smart" }
-	/**
-	 * Bindings
-	 * Bindings allow your Worker to interact with resources on the Cloudflare Developer Platform, including
-	 * databases, object storage, AI inference, real-time communication and more.
-	 * https://developers.cloudflare.com/workers/runtime-apis/bindings/
-	 */
-	/**
-	 * Environment Variables
-	 * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
-	 */
-	// "vars": { "MY_VARIABLE": "production_value" }
-	/**
-	 * Note: Use secrets to store sensitive data.
-	 * https://developers.cloudflare.com/workers/configuration/secrets/
-	 */
-	/**
-	 * Static Assets
-	 * https://developers.cloudflare.com/workers/static-assets/binding/
-	 */
-	// "assets": { "directory": "./public/", "binding": "ASSETS" }
-	/**
-	 * Service Bindings (communicate between multiple Workers)
-	 * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings
-	 */
-	// "services": [{ "binding": "MY_SERVICE", "service": "my-service" }]
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "quizmaker",
+			"database_id": "fd33905f-6013-476c-974a-79dbc6fed47a",
+			"migrations_dir": "migrations"
+		}
+	]
 }
