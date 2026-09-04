@@ -1,5 +1,5 @@
 Date created: 2026-09-04
-Date last modified: 2026-09-04
+Date last modified: 2026-09-04 (production deploy)
 
 # Multiple-Choice Question CRUD - Technical PRD
 
@@ -662,6 +662,7 @@ is the inherited Sprint 1 trap, now confirmed to bite on branch switches too.
 | `src/components/mcq-form.tsx` | Shared create/edit form |
 | `src/components/mcq-preview.tsx` | Answer and grade |
 | `src/app/mcqs/page.tsx` | Question bank (replaces the stub); Server Component |
+| `wrangler.jsonc` | Worker `quizmaker`, D1 `DB`, OpenNext `ASSETS` + `WORKER_SELF_REFERENCE` |
 | `src/app/mcqs/new/page.tsx` | Create |
 | `src/app/mcqs/[id]/edit/page.tsx` | Edit |
 | `src/app/mcqs/[id]/preview/page.tsx` | Preview |
@@ -727,7 +728,8 @@ export const choiceSetSchema = z
 - `/mcqs` is still **not** route-protected; there is no session. Anyone reaching the URL can
   edit the bank. That is Sprint 1's accepted boundary, not a bug to fix here
 - Never import `getDb` or `mcq-service` into a `'use client'` component
-- Migrations are `--local` by default. `--remote` and `npm run deploy` only when asked
+- Migrations are `--local` by default. `--remote` and `npm run deploy` only when asked.
+  Both were explicitly requested on 2026-09-04 and have been done (see Deployment)
 - `position` is assigned from array order on save; the UI never sends it
 - The four shadcn components are copied source files. Ask before adding a real npm dependency
 - Restart `npm run dev` after any `wrangler.jsonc` change
@@ -806,7 +808,57 @@ No new npm dependency is planned. If one becomes necessary, stop and ask.
 ### Environment
 
 - D1 binding `DB`; worker `quizmaker`; account `d0144de158bb59c054b6f7d86d340bc8`
+- OpenNext self-reference: `WORKER_SELF_REFERENCE` → service `quizmaker`
+- Compatibility date `2026-09-04`; flags `nodejs_compat` + `global_fetch_strictly_public`
+- Live: https://quizmaker.shwetha-hr.workers.dev
 - No new environment variables, so `.dev.vars.example` is unchanged
+
+---
+
+## Deployment
+
+Shipped 2026-09-04 after the user asked to correct `wrangler.jsonc` and deploy everything.
+
+### What changed in `wrangler.jsonc`
+
+Sprint 1 already had the worker name, `account_id`, `workers_dev`, and the D1 `DB` binding.
+The file was brought in line with the current OpenNext + Wrangler 4 template:
+
+| Field | Why |
+|---|---|
+| `$schema` → `./node_modules/wrangler/config-schema.json` | Relative path the Wrangler schema expects |
+| `compatibility_date` → `2026-09-04` | Workers guidance: keep the date current; OpenNext needs ≥ 2024-09-23 |
+| `services.WORKER_SELF_REFERENCE` → `quizmaker` | Required by current OpenNext get-started for Worker self-fetch / caching |
+| `observability.head_sampling_rate` → `1` | Structured logs on every request in production |
+| `migrations_dir` → `./migrations` | Explicit path; same folder as before |
+
+`main` (`.open-next/worker.js`) and `assets` (`.open-next/assets` / `ASSETS`) were left
+alone — OpenNext owns those paths. R2 incremental cache and Images were **not** added;
+they need extra Cloudflare resources and are not required to serve the question bank.
+
+`npm run cf-typegen` was re-run after the config change. `cloudflare-env.d.ts` now includes
+`WORKER_SELF_REFERENCE`.
+
+### Commands that ran
+
+```bash
+npx wrangler d1 migrations apply quizmaker --remote
+npm run cf-typegen
+npm run deploy
+```
+
+| Step | Result |
+|---|---|
+| Remote migration 0002 | Applied. `mcqs`, `mcq_choices`, `mcq_attempts` exist on production D1 |
+| Deploy | Worker `quizmaker`, version `d7c598a4-16f3-47d3-9c25-9e19bb6dbb52` |
+| Live URL | https://quizmaker.shwetha-hr.workers.dev |
+| Bindings on the Worker | `DB` (quizmaker), `WORKER_SELF_REFERENCE` (quizmaker), `ASSETS` |
+| Live `/mcqs` | 200 |
+| Live `/login` | 200 |
+| Live `GET /api/mcqs` | 200, empty list (`count=0`) — schema is there, no questions yet |
+
+A Wrangler warning about a duplicate `"options"` key inside `.open-next/.../handler.mjs`
+is generated OpenNext output, not application source. It did not block the deploy.
 
 ---
 
@@ -847,8 +899,10 @@ Sprint 1's guide still applies (`ai-workspace/register-login-logout_prd.md`), es
 
 ### `no such table: mcqs`
 **Problem**: Endpoints 500 with a missing-table error.
-**Cause**: Migration 0002 was written but never applied locally.
-**Solution**: `npx wrangler d1 migrations apply quizmaker --local`, then restart `npm run dev`.
+**Cause**: Migration 0002 was written but never applied in that environment.
+**Solution**: Local: `npx wrangler d1 migrations apply quizmaker --local`, then restart
+`npm run dev`. Production: `npx wrangler d1 migrations apply quizmaker --remote` (already
+done on 2026-09-04).
 **Code Reference**: `migrations/0002_create_mcqs.sql`
 
 ### `npx shadcn add` writes no files
@@ -917,7 +971,8 @@ Type the parsed body (`as { user?: ... }`) in a follow-up, or narrow before use.
 6. Keep MCQ SQL inside `src/lib/services/mcq-service.ts`
 7. Never import `getDb` or the service into a `'use client'` component
 8. Numbered placeholders; `all()` + `results[0]`; `db.batch()` for multi-statement writes
-9. Local migrations only. `--remote` and deploy are the user's call
+9. Default is still local migrations only. `--remote` and `npm run deploy` only when asked.
+   Both were done for this sprint on 2026-09-04 — see Deployment. Do not redeploy unless asked again.
 10. Ask before adding an npm dependency
 11. Update phase markers and acceptance criteria as work lands; cite code as `filepath:line-number`
 12. Working directory is the repo root, `quiz-maker/`
@@ -927,26 +982,30 @@ Type the parsed body (`as { user?: ... }`) in a follow-up, or narrow before use.
 ## Current Status
 
 **Last Updated**: 2026-09-04
-**Current Phase**: Phase 5 - Verification
-**Status**: **ALL PHASES COMPLETE.** MCQ CRUD is built, tested, and verified locally
+**Current Phase**: Phase 5 - Verification + production deploy
+**Status**: **SHIPPED.** MCQ CRUD is live at https://quizmaker.shwetha-hr.workers.dev
 **Branch**: `feature/mcq-crud` → `origin/feature/mcq-crud`, based on unmerged
 `feature/register-login-logout`
 **Suite**: 18 files / 129 tests passing (Sprint 1 baseline was 10 / 32)
 **Lint**: passing. **Build**: passing. **Typecheck**: 10 inherited errors in Sprint 1 auth
 route tests, none in this sprint's files
-**Migrations**: 0001 and 0002 applied `--local` only. The remote database has **not** been
-touched, and nothing has been deployed
+**Migrations**: 0001 and 0002 applied `--local` and `--remote`
+**Deploy**: Worker version `d7c598a4-16f3-47d3-9c25-9e19bb6dbb52`. Live `/mcqs`, `/login`,
+and `GET /api/mcqs` all return 200. The production bank is empty until a teacher creates
+the first question.
 
-**Open items for the user, none of which block the code:**
+**Open items that do not block the live Worker:**
 
-1. **Click through the UI.** The API and components are verified; the real browser flow is not.
+1. **Click through the UI on the live URL.** API and page renders are verified; a full
+   browser walkthrough of create → edit → preview → delete is still worth doing.
 2. **Decide the branch story.** Sprint 1 never merged, so this branch stacks on it. `main`
    still holds only the starter commit. Both branches need merging, oldest first.
 3. **Confirm the defaulted decisions** in the table near the top, particularly the added
    `question_text` column and the nullable `user_id`.
 4. **Accept or revisit that editing a question clears its attempts.** Fine today, wrong once
    attempt history matters.
-5. **Remote migration and deploy** are deliberately not done. Say the word if you want them.
+5. **Commit the deploy config.** `wrangler.jsonc`, regenerated `cloudflare-env.d.ts`, and
+   this PRD update are local until you ask for a commit.
 6. **A stashed `package-lock.json`** from `main` is still in `stash@{0}` if you want it back.
 
 **Suggested next sprint**: sessions, so `mcq_attempts.user_id` stops being null and `/mcqs`

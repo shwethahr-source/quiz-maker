@@ -105,7 +105,9 @@ export function McqForm({ mcqId, initialMcq }: McqFormProps) {
 				return;
 			}
 
+			// Push then refresh so the bank re-reads D1 instead of showing a cached empty list.
 			router.push("/mcqs");
+			router.refresh();
 		} catch {
 			setError("Unable to save this question");
 		} finally {

@@ -3,9 +3,9 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { McqForm } from "@/components/mcq-form";
 
-const { push } = vi.hoisted(() => ({ push: vi.fn() }));
+const { push, refresh } = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push, refresh }) }));
 
 const existingMcq = {
 	name: "Photosynthesis basics",
@@ -95,6 +95,7 @@ describe("McqForm", () => {
 			],
 		});
 		expect(push).toHaveBeenCalledWith("/mcqs");
+		expect(refresh).toHaveBeenCalled();
 	});
 
 	it("never marks two choices correct at once", async () => {
@@ -145,6 +146,7 @@ describe("McqForm", () => {
 			expect.objectContaining({ method: "PUT" }),
 		);
 		expect(push).toHaveBeenCalledWith("/mcqs");
+		expect(refresh).toHaveBeenCalled();
 	});
 
 	it("shows the server error and stays on the form", async () => {
@@ -161,6 +163,7 @@ describe("McqForm", () => {
 		expect(await screen.findByRole("alert")).toBeTruthy();
 		expect(screen.getByRole("alert").textContent).toMatch(/exactly one choice/i);
 		expect(push).not.toHaveBeenCalled();
+		expect(refresh).not.toHaveBeenCalled();
 	});
 
 	it("returns to the question bank without saving when cancelled", async () => {

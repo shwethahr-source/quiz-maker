@@ -1,17 +1,18 @@
 /**
  * Cloudflare Workers config for Quiz Maker (OpenNext).
  * https://developers.cloudflare.com/workers/wrangler/configuration/
+ * https://opennext.js.org/cloudflare/get-started
  *
  * Live URL after deploy: https://quizmaker.shwetha-hr.workers.dev
  * Find it in the dashboard under Workers & Pages → quizmaker
  * (not under Websites / Domains — this is not a custom domain).
  */
 {
-	"$schema": "node_modules/wrangler/config-schema.json",
+	"$schema": "./node_modules/wrangler/config-schema.json",
 	"name": "quizmaker",
 	"account_id": "d0144de158bb59c054b6f7d86d340bc8",
 	"main": ".open-next/worker.js",
-	"compatibility_date": "2026-07-01",
+	"compatibility_date": "2026-09-04",
 	"compatibility_flags": [
 		"nodejs_compat",
 		"global_fetch_strictly_public"
@@ -22,15 +23,22 @@
 		"binding": "ASSETS",
 		"directory": ".open-next/assets"
 	},
+	"services": [
+		{
+			"binding": "WORKER_SELF_REFERENCE",
+			"service": "quizmaker"
+		}
+	],
 	"observability": {
-		"enabled": true
+		"enabled": true,
+		"head_sampling_rate": 1
 	},
 	"d1_databases": [
 		{
 			"binding": "DB",
 			"database_name": "quizmaker",
 			"database_id": "fd33905f-6013-476c-974a-79dbc6fed47a",
-			"migrations_dir": "migrations"
+			"migrations_dir": "./migrations"
 		}
 	]
 }
