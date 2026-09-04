@@ -346,14 +346,17 @@ The server reads `is_correct` from the stored choice. A client cannot report its
 shadcn on Base UI, `base-nova`, Tailwind theme tokens only — no hard-coded colors.
 `/mcqs` keeps the Sprint 1 page shell so the sprint does not silently restyle the app.
 
-Components to add (source files, not npm packages — all four confirmed present in the
-registry):
+Components added (source files, not npm packages):
 
 ```bash
-npx shadcn@latest add @shadcn/dropdown-menu @shadcn/textarea @shadcn/radio-group @shadcn/alert-dialog
+npx shadcn@latest add '@shadcn/dropdown-menu' '@shadcn/textarea' '@shadcn/radio-group'
 ```
 
-Already installed and reused: `badge` `button` `card` `field` `input` `label` `separator` `table`
+`alert-dialog` was planned but **not** installed — see Phase 4 deviation 1. The delete
+confirmation uses the existing `dialog`.
+
+Already installed and reused: `badge` `button` `card` `dialog` `field` `input` `label`
+`separator` `table`
 
 #### Question bank (`/mcqs`)
 
@@ -522,7 +525,7 @@ verify it against. Both have a test asserting the field never reaches the servic
 
 ---
 
-### Phase 4: Frontend - PLANNED
+### Phase 4: Frontend - COMPLETED
 
 **Objective**: `/mcqs` becomes the question bank; the stub is gone.
 
@@ -539,6 +542,45 @@ verify it against. Both have a test asserting the field never reaches the servic
 **Deliverables**: components, four routes, tests; stub removed.
 
 **Commit**: `Replace the MCQ stub with a question bank table, editor, and preview.`
+
+**Result (2026-09-04):**
+
+| Step | Outcome |
+|---|---|
+| RED | `Failed to resolve import` for each of `mcq-table`, `mcq-form`, `mcq-preview`, `mcq-bank` |
+| GREEN | 31 component tests: table 9, form 9, preview 7, bank 6 |
+| Full suite | **129 passed / 18 files** (was 100 / 15 after Phase 3) |
+| `npm run lint` | passed (exit 0) |
+| `npm run build` | passed — `/mcqs`, `/mcqs/new`, `/mcqs/[id]/edit`, `/mcqs/[id]/preview`, `/api/mcqs*` all present |
+| Stub | `McqStub` and its test deleted; Log out preserved in `McqBank` |
+
+#### Deviations from the plan, and why
+
+1. **`alert-dialog` was not installed.** The `shadcn add` run stalled on an interactive
+   "`button.tsx` already exists, overwrite?" prompt that `--yes` does not cover. Overwriting
+   `button.tsx` would have rewritten a design-system file Sprint 1's forms depend on, so the
+   process was stopped. The delete confirmation uses the **already-installed `dialog`**
+   instead. `AlertDialog` is the more semantic choice for a confirm and can be swapped in
+   later; `Dialog` is functionally equivalent here and cost nothing.
+2. **shadcn 4.21.0 generated a broken import.** The three components it did write came out
+   with `import { cn } from "cn"` and it added a real npm package named `cn` to
+   `package.json`, even though `components.json` correctly aliases `"utils": "@/lib/utils"`.
+   The imports were repointed at `@/lib/utils` and the `cn` package was uninstalled, so
+   `package.json` is byte-identical to before. **This was a CLI bug, not a deliberate
+   dependency choice** — no new runtime dependency was added this sprint.
+3. **A fourth component, `McqBank`, was added.** The plan listed three. Pages are Server
+   Components that read through the service directly, which is what
+   `.cursor/rules/nextjs.mdc` asks for, so something client-side had to own the Create
+   button, the delete request, `router.refresh()`, and Log out. `McqTable` stayed
+   presentational, which is why it takes an `onDelete` callback.
+4. **The preview page strips `isCorrect` server-side.** `GET /api/mcqs/[id]` still returns it
+   because the editor needs it, but the preview page maps choices down to `{ id, choiceText }`
+   before rendering, so the answer key is not in the browser payload at all.
+5. **A duplicated accessible name was found and fixed.** Wrapping `RadioGroupItem` in a
+   `FieldLabel` *and* giving it an `aria-label` produced the name
+   `"Carbon dioxide Carbon dioxide"`, because Base UI also wires `aria-labelledby`. The
+   redundant `aria-label` was removed. The form's radios keep theirs, since they are not
+   wrapped in a label.
 
 ---
 
@@ -573,10 +615,11 @@ verify it against. Both have a test asserting the field never reaches the servic
 | `src/app/api/mcqs/route.ts` | `GET` list, `POST` create |
 | `src/app/api/mcqs/[id]/route.ts` | `GET`, `PUT`, `DELETE` |
 | `src/app/api/mcqs/[id]/attempts/route.ts` | `POST` attempt |
-| `src/components/mcq-table.tsx` | Table, ellipsis menu, delete confirm |
+| `src/components/mcq-bank.tsx` | Client shell: create, delete, refresh, log out |
+| `src/components/mcq-table.tsx` | Presentational table, ellipsis menu, delete confirm |
 | `src/components/mcq-form.tsx` | Shared create/edit form |
 | `src/components/mcq-preview.tsx` | Answer and grade |
-| `src/app/mcqs/page.tsx` | Question bank (replaces the stub) |
+| `src/app/mcqs/page.tsx` | Question bank (replaces the stub); Server Component |
 | `src/app/mcqs/new/page.tsx` | Create |
 | `src/app/mcqs/[id]/edit/page.tsx` | Edit |
 | `src/app/mcqs/[id]/preview/page.tsx` | Preview |
@@ -667,21 +710,21 @@ export const choiceSetSchema = z
 - [x] `POST /api/mcqs/[id]/attempts` stores the selected choice and server-derived correctness
 - [x] An attempt naming a choice from another question is rejected with 404
 - [x] Route handlers reach D1 only through `mcq-service`
-- [ ] `/mcqs` lists questions in a shadcn `Table` with name, description, and an actions column
-- [ ] The actions column is a three-vertical-ellipses menu offering Edit, Preview, and Delete
-- [ ] Delete asks for confirmation before it calls the API
-- [ ] The Create button opens `/mcqs/new`
-- [ ] The form shows 2 choice rows by default and allows up to 6
-- [ ] Save persists and returns to `/mcqs`; Cancel returns without saving
-- [ ] Edit loads the existing question and its choices
-- [ ] Preview records an attempt and reports correct or incorrect
-- [ ] Preview does not reveal the correct answer before submission
-- [ ] Log out still works from `/mcqs`
-- [ ] Sessions, tokens, cookies, and social login were not introduced
-- [ ] Phases 1–4 were test-first (RED then GREEN)
-- [ ] Each phase was committed and pushed separately
-- [ ] `npm test` is green and exceeds the 32-test baseline
-- [ ] `npm run lint` and `npm run build` pass
+- [x] `/mcqs` lists questions in a shadcn `Table` with name, description, and an actions column
+- [x] The actions column is a three-vertical-ellipses menu offering Edit, Preview, and Delete
+- [x] Delete asks for confirmation before it calls the API
+- [x] The Create button opens `/mcqs/new`
+- [x] The form shows 2 choice rows by default and allows up to 6
+- [x] Save persists and returns to `/mcqs`; Cancel returns without saving
+- [x] Edit loads the existing question and its choices
+- [x] Preview records an attempt and reports correct or incorrect
+- [x] Preview does not reveal the correct answer before submission
+- [x] Log out still works from `/mcqs`
+- [x] Sessions, tokens, cookies, and social login were not introduced
+- [x] Phases 1–4 were test-first (RED then GREEN)
+- [x] Each phase was committed and pushed separately
+- [x] `npm test` is green and exceeds the 32-test baseline (129 vs 32)
+- [x] `npm run lint` and `npm run build` pass
 
 ---
 
@@ -771,6 +814,32 @@ Sprint 1's guide still applies (`ai-workspace/register-login-logout_prd.md`), es
 **Solution**: Use `npx shadcn@latest add @shadcn/dropdown-menu`. In PowerShell, quote the
 argument — `'@shadcn/dropdown-menu'` — or the shell expands `@shadcn` as a variable.
 **Code Reference**: `.cursor/rules/shadcn.mdc`
+
+### `npx shadcn add` hangs forever
+**Problem**: The command prints "Updating files." and never returns.
+**Cause**: It is waiting on `? The file button.tsx already exists. Would you like to
+overwrite? » (y/N)`. `--yes` does not answer this prompt, and a non-interactive shell cannot.
+**Solution**: Do not overwrite `button.tsx` — Sprint 1's forms depend on it. Kill the
+process, then add components one at a time, or accept that shared files are already present.
+Check `git status` afterwards: files written before the prompt do land.
+**Code Reference**: Phase 4 deviation 1
+
+### New shadcn components import `cn` from the wrong place
+**Problem**: A generated component has `import { cn } from "cn"` and `package.json` gains a
+`cn` dependency.
+**Cause**: A bug in shadcn 4.21.0. It ignores the correct `"utils": "@/lib/utils"` alias in
+`components.json` and resolves `cn` to an npm package instead.
+**Solution**: Repoint the import at `@/lib/utils`, remove `cn` from `package.json`, and run
+`npm install`. Always check `git diff package.json` after adding a component.
+**Code Reference**: `components.json:17`
+
+### A radio or checkbox has a doubled accessible name
+**Problem**: `getByRole("radio", { name: "Oxygen" })` fails; the real name is
+`"Oxygen Oxygen"`.
+**Cause**: The control is wrapped in a `FieldLabel` *and* given an `aria-label`. Base UI also
+sets `aria-labelledby` to the label, so both contribute to the name.
+**Solution**: Pick one. Wrapped in a label, drop the `aria-label`; unwrapped, keep it.
+**Code Reference**: `src/components/mcq-preview.tsx`
 
 ### `is_correct` behaves as truthy when it should be false
 **Problem**: Every choice looks correct.
