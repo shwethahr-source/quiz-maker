@@ -584,7 +584,7 @@ verify it against. Both have a test asserting the field never reaches the servic
 
 ---
 
-### Phase 5: Verification - PLANNED
+### Phase 5: Verification - COMPLETED
 
 **Objective**: Suite, lint, and build all pass, and the document matches reality.
 
@@ -597,6 +597,48 @@ verify it against. Both have a test asserting the field never reaches the servic
 **RED is not required for Phase 5.**
 
 **Commit**: `Close MCQ CRUD verification and refresh the PRD.`
+
+**Result (2026-09-04):**
+
+| Check | Result |
+|---|---|
+| `npm test` | **129 passed / 18 files**, exit 0 |
+| `npm run lint` | passed, exit 0 |
+| `npm run build` | passed, exit 0; all 4 pages and 3 API routes emitted |
+| `npx tsc --noEmit` | no errors in this sprint's files; 10 inherited auth-test errors remain |
+| Service boundary | `getDb` appears only in `src/lib/db.ts`, the two services, and test mocks |
+
+#### End-to-end run against the real local D1
+
+Driven through the running dev server, not mocks, so this exercised the real SQL, the real
+binding, and the real route handlers. Every row created was deleted afterwards, and
+`SELECT COUNT(*)` on all three tables returned 0 at the end.
+
+| # | Check | Result |
+|---|---|---|
+| 1 | Create with 2 choices | 201, positions `0,1`, correct flags `True,False` |
+| 2 | List | row present, `choiceCount` 2 — the `LEFT JOIN` + `GROUP BY` works on real D1 |
+| 3 | Get by id | 200, choices in order |
+| 4 | Attempt on the wrong choice | `isCorrect` False, `userId` null, `correctChoiceId` matches |
+| 5 | Attempt sending `isCorrect: true` on a wrong choice | still False — the claim is ignored |
+| 6 | Update to 3 choices, null description | `createdAt` preserved, `updatedAt` changed |
+| 7 | Delete | `ok: true` |
+| 8 | Get / delete a deleted question | 404 / 404 |
+| 9 | Create with 1 choice / 7 choices / two correct / zero correct | 400 on all four |
+| 10 | Attempt naming a foreign choice | 404 |
+| 11 | `/mcqs` and `/mcqs/new` | 200 |
+| 12 | Preview page HTML | renders both choices, contains **no** `isCorrect` — the answer key is not shipped |
+| 13 | Edit page HTML | contains `isCorrect`, which the editor legitimately needs |
+| 14 | All three tables after cleanup | 0 rows each; delete removed choices and attempts |
+
+**Not verified by me:** the browser click-through. The endpoints, page renders, and
+component behavior are covered, but nobody has driven the real UI with a mouse. Worth ten
+minutes before this is called done.
+
+**One environment fix was needed.** The dev server that was already running had been started
+while the repo was on `main`, whose `wrangler.jsonc` has no D1 binding, so every write failed
+with `D1 binding DB is not available`. Restarting `npm run dev` on this branch fixed it. This
+is the inherited Sprint 1 trap, now confirmed to bite on branch switches too.
 
 ---
 
@@ -732,12 +774,13 @@ export const choiceSetSchema = z
 
 | Metric | Target | How Measured | Status |
 |--------|--------|--------------|--------|
-| Unit tests | Green, above the 32-test baseline | `npm test` | Pending |
-| CRUD happy path | Create → list → edit → preview → delete with no error | Local walkthrough on `npm run dev` | Pending |
-| Answer key never shipped early | Correct choice absent from preview markup pre-submit | `McqPreview` test | Pending |
-| Choice-set rule | 1, 7, zero-correct, and two-correct all rejected | Schema + route tests | Pending |
-| Service boundary | No `getDb` import outside `src/lib/` | Grep during Phase 5 | Pending |
-| Phase discipline | 6 commits, one per phase, each pushed | `git log --oneline origin/feature/mcq-crud` | Pending |
+| Unit tests | Green, above the 32-test baseline | `npm test` | **Met** — 129 / 18 files |
+| CRUD happy path | Create → list → edit → preview → delete with no error | Live API run on `npm run dev` | **Met** — all 14 checks passed |
+| Answer key never shipped early | Correct choice absent from preview markup pre-submit | `McqPreview` test + live page HTML | **Met** — no `isCorrect` in preview HTML |
+| Choice-set rule | 1, 7, zero-correct, and two-correct all rejected | Schema + route tests + live 400s | **Met** |
+| Service boundary | No `getDb` import outside `src/lib/` | Grep during Phase 5 | **Met** |
+| Phase discipline | 6 commits, one per phase, each pushed | `git log --oneline origin/feature/mcq-crud` | **Met** |
+| Browser click-through | A human drives the real UI | Manual | **Not done** — needs the user |
 
 ---
 
@@ -884,15 +927,27 @@ Type the parsed body (`as { user?: ... }`) in a follow-up, or narrow before use.
 ## Current Status
 
 **Last Updated**: 2026-09-04
-**Current Phase**: Phase 3 - HTTP endpoints
-**Status**: COMPLETED — Phase 4 not started
+**Current Phase**: Phase 5 - Verification
+**Status**: **ALL PHASES COMPLETE.** MCQ CRUD is built, tested, and verified locally
 **Branch**: `feature/mcq-crud` → `origin/feature/mcq-crud`, based on unmerged
 `feature/register-login-logout`
-**Suite**: 15 files / 100 tests passing (Sprint 1 baseline was 10 / 32)
-**Lint**: passing. **Typecheck**: 10 inherited errors in Sprint 1 auth route tests, none in
-this sprint's files
-**Migrations**: 0001 and 0002 applied `--local`. Remote is untouched and stays that way
-until the user asks
-**Next Steps**: Phase 4. Add the four shadcn components, write component tests for
-`McqTable` / `McqForm` / `McqPreview` and confirm RED, then build them and the four routes,
-remove `McqStub`, then commit and push as one phase
+**Suite**: 18 files / 129 tests passing (Sprint 1 baseline was 10 / 32)
+**Lint**: passing. **Build**: passing. **Typecheck**: 10 inherited errors in Sprint 1 auth
+route tests, none in this sprint's files
+**Migrations**: 0001 and 0002 applied `--local` only. The remote database has **not** been
+touched, and nothing has been deployed
+
+**Open items for the user, none of which block the code:**
+
+1. **Click through the UI.** The API and components are verified; the real browser flow is not.
+2. **Decide the branch story.** Sprint 1 never merged, so this branch stacks on it. `main`
+   still holds only the starter commit. Both branches need merging, oldest first.
+3. **Confirm the defaulted decisions** in the table near the top, particularly the added
+   `question_text` column and the nullable `user_id`.
+4. **Accept or revisit that editing a question clears its attempts.** Fine today, wrong once
+   attempt history matters.
+5. **Remote migration and deploy** are deliberately not done. Say the word if you want them.
+6. **A stashed `package-lock.json`** from `main` is still in `stash@{0}` if you want it back.
+
+**Suggested next sprint**: sessions, so `mcq_attempts.user_id` stops being null and `/mcqs`
+can actually be protected; then grouping questions into quizzes.
