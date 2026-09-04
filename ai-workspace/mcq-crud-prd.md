@@ -159,11 +159,36 @@ npm run test:watch
 
 Baseline entering this sprint: **10 files / 32 tests passing.**
 
+### Service tests run real SQL (change from Sprint 1)
+
+Sprint 1 tested `user-service` against a hand-written in-memory D1 that parsed SQL with
+regexes. That works for single-table CRUD but does not scale to this sprint, which needs a
+`LEFT JOIN`, `GROUP BY`, `COUNT(*)`, `ORDER BY position`, and `batch()`. A hand-written
+parser can report success while the production SQL is wrong, because the parser and SQLite
+disagree — the test then proves nothing.
+
+Instead, `src/test-support/memory-d1.ts` is a thin D1-shaped facade over the **built-in**
+`node:sqlite` module, seeded by executing the real files in `migrations/`. Service tests
+mock `@/lib/db` and hand back one of these, so the service runs its actual SQL against a
+real SQLite engine with `PRAGMA foreign_keys = ON`.
+
+- This is **not** a new npm dependency. `node:sqlite` ships with Node (runtime here is
+  v24.20.0, where it is stable) and is typed by the pinned `@types/node`
+- This is **not** the Workers runtime and does not pretend to be. It stands in for the D1
+  binding only. Real Workers behavior would need `@cloudflare/vitest-pool-workers`, which
+  Sprint 1 cut and this sprint also declines
+- The facade rejects any bound value D1 itself would reject, so a service binding a boolean
+  or an object fails in tests rather than passing and breaking in production
+- Test support lives in `src/test-support/` and must never be imported by application code
+
+Sprint 1's `user-service.test.ts` keeps its original fake. It is green and rewriting it is
+not this sprint's job.
+
 Rules carried forward:
 
 - RED first, and the RED must fail for the reason the test targets
 - Mock `@/lib/db` when the subject is the service; mock `@/lib/services/mcq-service` when
-  the subject is a route handler. Never touch real D1 in a unit test
+  the subject is a route handler. Never touch the real Cloudflare D1 binding in a unit test
 - `vi.clearAllMocks()` in `beforeEach`; every test passes alone
 - Query UI by role and accessible name; drive it with `userEvent`
 - Do not render Server Components in Testing Library
@@ -411,7 +436,7 @@ the existing `DB` binding. The remote database was **not** touched.
 
 ---
 
-### Phase 2: MCQ service - PLANNED
+### Phase 2: MCQ service - COMPLETED
 
 **Objective**: One module owns every MCQ SQL statement.
 
@@ -428,6 +453,30 @@ the existing `DB` binding. The remote database was **not** touched.
 **Deliverables**: service + tests.
 
 **Commit**: `Add an MCQ service that persists questions with their choices.`
+
+**Result (2026-09-04):**
+
+| Step | Outcome |
+|---|---|
+| RED | `Failed to resolve import "@/lib/services/mcq-service"` — the intended reason |
+| GREEN | 28 service tests pass against real SQLite running the real migrations |
+| Full suite | **69 passed / 12 files** (was 41 / 11 after Phase 1) |
+| `npm run lint` | passed (exit 0) |
+
+Two corrections made during the phase, both worth knowing:
+
+1. The first draft of the facade only supported `prepare().bind().all()`. Real D1 also
+   allows `prepare().all()` with no parameters, which `listMcqs` uses. Three tests failed;
+   the **facade** was wrong, not the service, so the facade was fixed.
+2. An ambient `node:sqlite` declaration was added and then deleted: the pinned
+   `@types/node` already ships `node_modules/@types/node/sqlite.d.ts`. The real types are
+   stricter (`SQLInputValue`), which is what produced the bound-value guard described above.
+
+**Inherited, pre-existing:** `npx tsc --noEmit` reports 10 errors in Sprint 1's
+`src/app/api/auth/{login,logout,register}/route.test.ts` (untyped `await response.json()`
+and a `POST(request)` called with an argument). They arrived with the branch, are untouched
+by this sprint, and are logged in Troubleshooting. Phase 5 must confirm whether
+`npm run build` tolerates them.
 
 ---
 
@@ -494,7 +543,8 @@ the existing `DB` binding. The remote database was **not** touched.
 |---|---|
 | `migrations/0002_create_mcqs.sql` | The three tables and their indexes |
 | `src/lib/db.ts` | Existing `getDb()`; unchanged |
-| `src/lib/services/mcq-service.ts` | All MCQ SQL |
+| `src/lib/services/mcq-service.ts` | All MCQ SQL; exports `MIN_CHOICES` / `MAX_CHOICES` |
+| `src/test-support/memory-d1.ts` | Test-only D1 facade over `node:sqlite`; never import from app code |
 | `src/lib/mcq-schemas.ts` | Zod bodies for create, update, and attempt |
 | `src/app/api/mcqs/route.ts` | `GET` list, `POST` create |
 | `src/app/api/mcqs/[id]/route.ts` | `GET`, `PUT`, `DELETE` |
@@ -704,6 +754,16 @@ argument — `'@shadcn/dropdown-menu'` — or the shell expands `@shadcn` as a v
 **Solution**: Convert at the service boundary with `row.is_correct === 1`.
 **Code Reference**: `src/lib/services/mcq-service.ts`
 
+### `tsc --noEmit` reports errors in the auth route tests
+**Problem**: 10 errors in `src/app/api/auth/*/route.test.ts` — `'json' is of type 'unknown'`
+and `Expected 0 arguments, but got 1`.
+**Cause**: Inherited from Sprint 1. `await response.json()` returns `unknown` and was used
+without narrowing, and the logout test passes a request to a `POST()` that takes none.
+`npm test` still passes because Vitest transpiles without type-checking.
+**Solution**: Out of scope for this sprint — do not silently "fix" Sprint 1's tests here.
+Type the parsed body (`as { user?: ... }`) in a follow-up, or narrow before use.
+**Code Reference**: `src/app/api/auth/login/route.test.ts:61`
+
 ### PowerShell reports git output as an error
 **Problem**: `git push` and `git checkout` print red `NativeCommandError` text but work.
 **Cause**: Git writes progress to stderr; PowerShell renders stderr as an error record.
@@ -731,13 +791,15 @@ argument — `'@shadcn/dropdown-menu'` — or the shell expands `@shadcn` as a v
 ## Current Status
 
 **Last Updated**: 2026-09-04
-**Current Phase**: Phase 1 - Database foundation
-**Status**: COMPLETED — Phase 2 not started
+**Current Phase**: Phase 2 - MCQ service
+**Status**: COMPLETED — Phase 3 not started
 **Branch**: `feature/mcq-crud` → `origin/feature/mcq-crud`, based on unmerged
 `feature/register-login-logout`
-**Suite**: 11 files / 41 tests passing (Sprint 1 baseline was 10 / 32)
+**Suite**: 12 files / 69 tests passing (Sprint 1 baseline was 10 / 32)
+**Lint**: passing. **Typecheck**: 10 inherited errors in Sprint 1 auth route tests, none in
+this sprint's files
 **Migrations**: 0001 and 0002 applied `--local`. Remote is untouched and stays that way
 until the user asks
-**Next Steps**: Phase 2. Write `src/lib/services/mcq-service.test.ts` against a mocked
-`@/lib/db` and confirm RED, then implement `src/lib/services/mcq-service.ts`, then commit
-and push as one phase
+**Next Steps**: Phase 3. Write route tests mocking `@/lib/services/mcq-service` and confirm
+RED, then implement `src/lib/mcq-schemas.ts` and the three route files, then commit and push
+as one phase
