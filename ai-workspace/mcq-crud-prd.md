@@ -380,7 +380,7 @@ One `McqForm` component for both routes; `/mcqs/[id]/edit` seeds it from `GET /a
 
 ---
 
-### Phase 1: Database foundation - PLANNED
+### Phase 1: Database foundation - COMPLETED
 
 **Objective**: Three tables exist locally, with the shape later phases rely on.
 
@@ -395,6 +395,19 @@ One `McqForm` component for both routes; `/mcqs/[id]/edit` seeds it from `GET /a
 **Deliverables**: `migrations/0002_create_mcqs.sql`, `src/lib/db/mcqs-schema.test.ts`.
 
 **Commit**: `Add the MCQ, choices, and attempts D1 schema.`
+
+**Result (2026-09-04):**
+
+| Step | Outcome |
+|---|---|
+| RED | 9 tests failed with `No MCQ migration found in migrations/` — the intended reason |
+| GREEN | `migrations/0002_create_mcqs.sql` written; the 9 tests pass |
+| Local apply | `migrations apply quizmaker --local` — 0001 and 0002 both ✅ |
+| Tables verified | `sqlite_master` lists `mcqs`, `mcq_choices`, `mcq_attempts`, `users` |
+| Full suite | **41 passed / 11 files**, up from the 32 / 10 baseline |
+
+`cf-typegen` was not needed: no `wrangler.jsonc` binding changed, only the schema behind
+the existing `DB` binding. The remote database was **not** touched.
 
 ---
 
@@ -564,10 +577,10 @@ export const choiceSetSchema = z
 
 ## Acceptance Criteria
 
-- [ ] `migrations/0002_create_mcqs.sql` creates `mcqs`, `mcq_choices`, `mcq_attempts` and applies locally
-- [ ] `mcq_choices.mcq_id` and `mcq_attempts.mcq_id` are foreign keys to `mcqs (id)`
-- [ ] `mcq_attempts.choice_id` is a foreign key to `mcq_choices (id)`
-- [ ] `mcq_attempts.user_id` is nullable and accepts `NULL`
+- [x] `migrations/0002_create_mcqs.sql` creates `mcqs`, `mcq_choices`, `mcq_attempts` and applies locally
+- [x] `mcq_choices.mcq_id` and `mcq_attempts.mcq_id` are foreign keys to `mcqs (id)`
+- [x] `mcq_attempts.choice_id` is a foreign key to `mcq_choices (id)`
+- [x] `mcq_attempts.user_id` is nullable and accepts `NULL`
 - [ ] A question saves with 2 choices and with 6 choices
 - [ ] A question with 1 choice is rejected with 400
 - [ ] A question with 7 choices is rejected with 400
@@ -718,10 +731,13 @@ argument — `'@shadcn/dropdown-menu'` — or the shell expands `@shadcn` as a v
 ## Current Status
 
 **Last Updated**: 2026-09-04
-**Current Phase**: Phase 0 - PRD
-**Status**: COMPLETED — Phase 1 not started
+**Current Phase**: Phase 1 - Database foundation
+**Status**: COMPLETED — Phase 2 not started
 **Branch**: `feature/mcq-crud` → `origin/feature/mcq-crud`, based on unmerged
 `feature/register-login-logout`
-**Baseline suite**: 10 files / 32 tests passing, inherited from Sprint 1
-**Next Steps**: Phase 1. Write `src/lib/db/mcqs-schema.test.ts` and confirm RED, then create
-and locally apply `migrations/0002_create_mcqs.sql`, then commit and push as one phase
+**Suite**: 11 files / 41 tests passing (Sprint 1 baseline was 10 / 32)
+**Migrations**: 0001 and 0002 applied `--local`. Remote is untouched and stays that way
+until the user asks
+**Next Steps**: Phase 2. Write `src/lib/services/mcq-service.test.ts` against a mocked
+`@/lib/db` and confirm RED, then implement `src/lib/services/mcq-service.ts`, then commit
+and push as one phase
