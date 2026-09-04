@@ -259,8 +259,13 @@ npx wrangler d1 migrations apply quizmaker --local
 JSON in, JSON out. Handlers validate with Zod, then call the service. **No handler imports
 `getDb` or writes SQL** — the Sprint 1 rule holds.
 
-`mcqId` and `choiceId` are UUID strings. `name` 1–120 chars, `questionText` 1–1000,
-`description` 0–500 (nullable), `choiceText` 1–300.
+`name` 1–120 chars, `questionText` 1–1000, `description` 0–500 (nullable), `choiceText`
+1–300. Ids are validated only as non-empty strings, not as UUIDs: the service issues
+`crypto.randomUUID()` values, but a format check would turn "unknown id" into a 400 when
+404 is the honest answer.
+
+Validation errors return the first Zod issue message, so the form can show something
+specific ("Exactly one choice must be marked correct") rather than a generic failure.
 
 #### GET /api/mcqs — `src/app/api/mcqs/route.ts`
 
@@ -480,7 +485,7 @@ by this sprint, and are logged in Troubleshooting. Phase 5 must confirm whether
 
 ---
 
-### Phase 3: HTTP endpoints - PLANNED
+### Phase 3: HTTP endpoints - COMPLETED
 
 **Objective**: The six routes above, validated and mapped to correct status codes.
 
@@ -496,6 +501,24 @@ by this sprint, and are logged in Troubleshooting. Phase 5 must confirm whether
 `src/app/api/mcqs/[id]/route.ts`, `src/app/api/mcqs/[id]/attempts/route.ts`, plus tests.
 
 **Commit**: `Add MCQ CRUD and attempt HTTP endpoints.`
+
+**Result (2026-09-04):**
+
+| Step | Outcome |
+|---|---|
+| RED | `Failed to resolve import "./route"` for all three route files — the intended reason |
+| GREEN | 31 route tests pass across the three files |
+| Full suite | **100 passed / 15 files** (was 69 / 12 after Phase 2) |
+| `npm run lint` | passed (exit 0) |
+| Typecheck | no errors in this sprint's files |
+| Service boundary | every route test asserts `getDb` was never called |
+
+`readJson` was extracted to `src/lib/read-json.ts` rather than copied a third time. Sprint 1
+has its own inline copies in the auth routes; those were left alone.
+
+Attempts deliberately drop two fields a client might send. `isCorrect` is ignored because
+correctness is read from storage, and `userId` is ignored because there is no session to
+verify it against. Both have a test asserting the field never reaches the service.
 
 ---
 
@@ -546,6 +569,7 @@ by this sprint, and are logged in Troubleshooting. Phase 5 must confirm whether
 | `src/lib/services/mcq-service.ts` | All MCQ SQL; exports `MIN_CHOICES` / `MAX_CHOICES` |
 | `src/test-support/memory-d1.ts` | Test-only D1 facade over `node:sqlite`; never import from app code |
 | `src/lib/mcq-schemas.ts` | Zod bodies for create, update, and attempt |
+| `src/lib/read-json.ts` | Shared body parser that turns malformed JSON into a 400, not a 500 |
 | `src/app/api/mcqs/route.ts` | `GET` list, `POST` create |
 | `src/app/api/mcqs/[id]/route.ts` | `GET`, `PUT`, `DELETE` |
 | `src/app/api/mcqs/[id]/attempts/route.ts` | `POST` attempt |
@@ -631,18 +655,18 @@ export const choiceSetSchema = z
 - [x] `mcq_choices.mcq_id` and `mcq_attempts.mcq_id` are foreign keys to `mcqs (id)`
 - [x] `mcq_attempts.choice_id` is a foreign key to `mcq_choices (id)`
 - [x] `mcq_attempts.user_id` is nullable and accepts `NULL`
-- [ ] A question saves with 2 choices and with 6 choices
-- [ ] A question with 1 choice is rejected with 400
-- [ ] A question with 7 choices is rejected with 400
-- [ ] A question with zero or two correct choices is rejected with 400
-- [ ] `GET /api/mcqs` returns every question with a `choiceCount`
-- [ ] `GET /api/mcqs/[id]` returns choices ordered by `position`
-- [ ] `PUT /api/mcqs/[id]` replaces the choice set and bumps `updated_at`
-- [ ] `DELETE /api/mcqs/[id]` removes the question, its choices, and its attempts
-- [ ] Any endpoint returns 404 for an unknown question id
-- [ ] `POST /api/mcqs/[id]/attempts` stores the selected choice and server-derived correctness
-- [ ] An attempt naming a choice from another question is rejected with 404
-- [ ] Route handlers reach D1 only through `mcq-service`
+- [x] A question saves with 2 choices and with 6 choices
+- [x] A question with 1 choice is rejected with 400
+- [x] A question with 7 choices is rejected with 400
+- [x] A question with zero or two correct choices is rejected with 400
+- [x] `GET /api/mcqs` returns every question with a `choiceCount`
+- [x] `GET /api/mcqs/[id]` returns choices ordered by `position`
+- [x] `PUT /api/mcqs/[id]` replaces the choice set and bumps `updated_at`
+- [x] `DELETE /api/mcqs/[id]` removes the question, its choices, and its attempts
+- [x] Any endpoint returns 404 for an unknown question id
+- [x] `POST /api/mcqs/[id]/attempts` stores the selected choice and server-derived correctness
+- [x] An attempt naming a choice from another question is rejected with 404
+- [x] Route handlers reach D1 only through `mcq-service`
 - [ ] `/mcqs` lists questions in a shadcn `Table` with name, description, and an actions column
 - [ ] The actions column is a three-vertical-ellipses menu offering Edit, Preview, and Delete
 - [ ] Delete asks for confirmation before it calls the API
@@ -791,15 +815,15 @@ Type the parsed body (`as { user?: ... }`) in a follow-up, or narrow before use.
 ## Current Status
 
 **Last Updated**: 2026-09-04
-**Current Phase**: Phase 2 - MCQ service
-**Status**: COMPLETED — Phase 3 not started
+**Current Phase**: Phase 3 - HTTP endpoints
+**Status**: COMPLETED — Phase 4 not started
 **Branch**: `feature/mcq-crud` → `origin/feature/mcq-crud`, based on unmerged
 `feature/register-login-logout`
-**Suite**: 12 files / 69 tests passing (Sprint 1 baseline was 10 / 32)
+**Suite**: 15 files / 100 tests passing (Sprint 1 baseline was 10 / 32)
 **Lint**: passing. **Typecheck**: 10 inherited errors in Sprint 1 auth route tests, none in
 this sprint's files
 **Migrations**: 0001 and 0002 applied `--local`. Remote is untouched and stays that way
 until the user asks
-**Next Steps**: Phase 3. Write route tests mocking `@/lib/services/mcq-service` and confirm
-RED, then implement `src/lib/mcq-schemas.ts` and the three route files, then commit and push
-as one phase
+**Next Steps**: Phase 4. Add the four shadcn components, write component tests for
+`McqTable` / `McqForm` / `McqPreview` and confirm RED, then build them and the four routes,
+remove `McqStub`, then commit and push as one phase
